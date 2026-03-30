@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { OrderCard } from '@/components/dashboard/order-card'
 
@@ -68,7 +69,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold">Pedidos ativos</h2>
-            <a href="/dashboard/pedidos" className="text-blue-400 text-sm hover:text-blue-300 transition-colors">Ver todos →</a>
+            <Link href="/dashboard/pedidos" className="text-blue-400 text-sm hover:text-blue-300 transition-colors">Ver todos →</Link>
           </div>
           <div className="space-y-3">
             {demoOrders.map((order) => (
@@ -121,9 +122,9 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <a href="/dashboard/recuperacao" className="block text-center text-blue-400 text-sm mt-4 hover:text-blue-300 transition-colors">
+            <Link href="/dashboard/recuperacao" className="block text-center text-blue-400 text-sm mt-4 hover:text-blue-300 transition-colors">
               Ver detalhes →
-            </a>
+            </Link>
           </div>
         </div>
       </div>
