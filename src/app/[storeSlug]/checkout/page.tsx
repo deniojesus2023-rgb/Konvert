@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 
 const CART_ITEMS = [
@@ -16,6 +16,7 @@ const total = subtotal + DELIVERY_FEE
 type PaymentMethod = 'pix' | 'credit_card' | 'debit_card' | 'cash'
 
 export default function CheckoutPage() {
+  const router = useRouter()
   const [step, setStep] = useState<'info' | 'payment' | 'pix'>('info')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix')
   const [form, setForm] = useState({
@@ -96,9 +97,9 @@ export default function CheckoutPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
-          <Link href="javascript:history.back()" className="text-white/50 hover:text-white transition-colors">
+          <button onClick={() => router.back()} className="text-white/50 hover:text-white transition-colors">
             ← Voltar
-          </Link>
+          </button>
           <h1 className="font-bold text-xl">Finalizar pedido</h1>
         </div>
 
