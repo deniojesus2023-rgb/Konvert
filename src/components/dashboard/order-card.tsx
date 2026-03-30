@@ -1,3 +1,5 @@
+'use client'
+
 import { getOrderStatusColor, getOrderStatusLabel, getSourceColor, getSourceLabel, formatCurrency, formatDate } from '@/lib/utils'
 
 interface OrderCardProps {

@@ -1,3 +1,5 @@
+'use client'
+
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { StatsCard } from '@/components/dashboard/stats-card'
 

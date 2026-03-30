@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 
 const DEMO_CUSTOMERS = [
@@ -17,13 +20,26 @@ const TAG_COLORS: Record<string, string> = {
   inativo: 'bg-red-500/20 text-red-400',
 }
 
+const FILTERS = [
+  { id: 'all', label: 'Todos' },
+  { id: 'vip', label: 'VIP' },
+  { id: 'novo', label: 'Novos' },
+  { id: 'inativo', label: 'Inativos' },
+]
+
 export default function ClientesPage() {
+  const [filter, setFilter] = useState('all')
+
+  const filtered = filter === 'all'
+    ? DEMO_CUSTOMERS
+    : DEMO_CUSTOMERS.filter((c) => c.tags.includes(filter))
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold mb-1">Clientes</h1>
-          <p className="text-white/50 text-sm">{DEMO_CUSTOMERS.length} clientes cadastrados</p>
+          <p className="text-white/50 text-sm">{filtered.length} clientes encontrados</p>
         </div>
         <div className="flex gap-2">
           <button className="bg-white/5 border border-white/10 hover:border-white/20 text-white/70 hover:text-white px-4 py-2 rounded-lg text-sm transition-colors">
@@ -34,9 +50,17 @@ export default function ClientesPage() {
 
       {/* Filters */}
       <div className="flex gap-2 mb-6">
-        {['Todos', 'VIP', 'Novos', 'Inativos'].map((f) => (
-          <button key={f} className={`px-4 py-2 rounded-lg text-sm transition-colors ${f === 'Todos' ? 'bg-blue-600 text-white' : 'bg-white/5 border border-white/10 text-white/60 hover:text-white'}`}>
-            {f}
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+              filter === f.id
+                ? 'bg-blue-600 text-white'
+                : 'bg-white/5 border border-white/10 text-white/60 hover:text-white'
+            }`}
+          >
+            {f.label}
           </button>
         ))}
       </div>
@@ -56,37 +80,45 @@ export default function ClientesPage() {
             </tr>
           </thead>
           <tbody>
-            {DEMO_CUSTOMERS.map((customer, i) => (
-              <tr key={customer.id} className={`hover:bg-white/5 transition-colors ${i < DEMO_CUSTOMERS.length - 1 ? 'border-b border-white/5' : ''}`}>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-600/30 rounded-full flex items-center justify-center text-sm font-semibold">
-                      {customer.name.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="font-medium text-sm">{customer.name}</div>
-                      {customer.email && <div className="text-white/40 text-xs">{customer.email}</div>}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-white/70 text-sm">{customer.phone}</td>
-                <td className="px-6 py-4 text-sm">{customer.total_orders}</td>
-                <td className="px-6 py-4 text-blue-400 text-sm font-medium">{formatCurrency(customer.total_spent)}</td>
-                <td className="px-6 py-4 text-white/50 text-sm">{formatDateShort(customer.last_order_at)}</td>
-                <td className="px-6 py-4">
-                  <div className="flex gap-1">
-                    {customer.tags.map((tag) => (
-                      <span key={tag} className={`text-xs px-2 py-0.5 rounded-full ${TAG_COLORS[tag] || 'bg-gray-500/20 text-gray-400'}`}>
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <button className="text-white/30 hover:text-blue-400 text-sm transition-colors">Ver →</button>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-12 text-center text-white/30">
+                  Nenhum cliente neste filtro
                 </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((customer, i) => (
+                <tr key={customer.id} className={`hover:bg-white/5 transition-colors ${i < filtered.length - 1 ? 'border-b border-white/5' : ''}`}>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-600/30 rounded-full flex items-center justify-center text-sm font-semibold">
+                        {customer.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">{customer.name}</div>
+                        {customer.email && <div className="text-white/40 text-xs">{customer.email}</div>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-white/70 text-sm">{customer.phone}</td>
+                  <td className="px-6 py-4 text-sm">{customer.total_orders}</td>
+                  <td className="px-6 py-4 text-blue-400 text-sm font-medium">{formatCurrency(customer.total_spent)}</td>
+                  <td className="px-6 py-4 text-white/50 text-sm">{formatDateShort(customer.last_order_at)}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex gap-1 flex-wrap">
+                      {customer.tags.map((tag) => (
+                        <span key={tag} className={`text-xs px-2 py-0.5 rounded-full ${TAG_COLORS[tag] || 'bg-gray-500/20 text-gray-400'}`}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <button className="text-white/30 hover:text-blue-400 text-sm transition-colors">Ver →</button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
