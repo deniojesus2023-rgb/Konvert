@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 
 const CART_ITEMS = [
@@ -16,6 +16,7 @@ const total = subtotal + DELIVERY_FEE
 type PaymentMethod = 'pix' | 'credit_card' | 'debit_card' | 'cash'
 
 export default function CheckoutPage() {
+  const router = useRouter()
   const [step, setStep] = useState<'info' | 'payment' | 'pix'>('info')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix')
   const [form, setForm] = useState({
@@ -55,12 +56,15 @@ export default function CheckoutPage() {
           <h1 className="text-2xl font-bold mb-2">Pedido confirmado!</h1>
           <p className="text-white/50 mb-8">Escaneie o QR Code para pagar via Pix</p>
 
-          {/* Fake QR Code */}
-          <div className="bg-white p-6 rounded-2xl mb-6 mx-auto w-48 h-48 flex items-center justify-center">
-            <div className="grid grid-cols-8 gap-0.5 w-full h-full">
-              {Array.from({ length: 64 }).map((_, i) => (
-                <div key={i} className={`${Math.random() > 0.5 ? 'bg-black' : 'bg-white'} aspect-square`} />
-              ))}
+          {/* QR Code placeholder */}
+          <div className="bg-white p-4 rounded-2xl mb-6 mx-auto w-48 h-48 flex items-center justify-center">
+            <div className="w-full h-full flex items-center justify-center text-black text-xs text-center leading-tight">
+              <div>
+                <div className="text-4xl mb-2">▣</div>
+                <span className="font-mono">QR Code Pix</span>
+                <br />
+                <span className="text-gray-500">(aguardando API)</span>
+              </div>
             </div>
           </div>
 
@@ -93,9 +97,9 @@ export default function CheckoutPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
-          <Link href="javascript:history.back()" className="text-white/50 hover:text-white transition-colors">
+          <button onClick={() => router.back()} className="text-white/50 hover:text-white transition-colors">
             ← Voltar
-          </Link>
+          </button>
           <h1 className="font-bold text-xl">Finalizar pedido</h1>
         </div>
 

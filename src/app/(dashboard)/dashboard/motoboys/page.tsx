@@ -37,7 +37,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 export default function MotoboysPage() {
-  const [drivers, setDrivers] = useState(DEMO_DRIVERS)
+  const [drivers] = useState(DEMO_DRIVERS)
 
   const available = drivers.filter((d) => d.status === 'available').length
   const busy = drivers.filter((d) => d.status === 'busy').length

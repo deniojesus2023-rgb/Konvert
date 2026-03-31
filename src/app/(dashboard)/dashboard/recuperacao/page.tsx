@@ -1,3 +1,5 @@
+'use client'
+
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { StatsCard } from '@/components/dashboard/stats-card'
 
@@ -60,7 +62,7 @@ export default function RecuperacaoPage() {
                 </div>
 
                 <div className="text-sm text-white/50 mb-3">
-                  {cart.items.map((item, i) => `${item.quantity}x ${item.product_name}`).join(', ')}
+                  {cart.items.map((item) => `${item.quantity}x ${item.product_name}`).join(', ')}
                 </div>
 
                 <div className="flex items-center justify-between">
