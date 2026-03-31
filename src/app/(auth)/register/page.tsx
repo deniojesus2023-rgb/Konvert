@@ -5,6 +5,17 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+}
+
 export default function RegisterPage() {
   const router = useRouter()
   const [form, setForm] = useState({
@@ -36,7 +47,7 @@ export default function RegisterPage() {
     setError('')
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
@@ -47,8 +58,52 @@ export default function RegisterPage() {
       },
     })
 
-    if (error) {
-      setError(error.message)
+    if (signUpError) {
+      setError(signUpError.message)
+      setLoading(false)
+      return
+    }
+
+    const user = signUpData?.user
+    if (!user) {
+      setError('Não foi possível criar o usuário. Tente novamente.')
+      setLoading(false)
+      return
+    }
+
+    // Create organization
+    const orgSlug = generateSlug(form.organizationName)
+    const { data: org, error: orgError } = await supabase
+      .from('organizations')
+      .insert({
+        name: form.organizationName,
+        slug: orgSlug || `org-${Math.random().toString(36).slice(2, 7)}`,
+        owner_id: user.id,
+        plan: 'starter',
+      })
+      .select()
+      .single()
+
+    if (orgError) {
+      setError(`Conta criada, mas houve um erro ao configurar sua organização: ${orgError.message}`)
+      setLoading(false)
+      return
+    }
+
+    // Create store
+    const storeSlug = generateSlug(form.organizationName)
+    const { error: storeError } = await supabase
+      .from('stores')
+      .insert({
+        organization_id: org.id,
+        name: form.organizationName,
+        slug: storeSlug || `store-${Math.random().toString(36).slice(2, 7)}`,
+      })
+      .select()
+      .single()
+
+    if (storeError) {
+      setError(`Organização criada, mas houve um erro ao configurar sua loja: ${storeError.message}`)
       setLoading(false)
       return
     }

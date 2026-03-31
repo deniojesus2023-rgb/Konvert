@@ -1,6 +1,14 @@
 'use client'
 
-import { getOrderStatusColor, getOrderStatusLabel, getSourceColor, getSourceLabel, formatCurrency, formatDate } from '@/lib/utils'
+import { useState } from 'react'
+import {
+  getOrderStatusColor,
+  getOrderStatusLabel,
+  getSourceColor,
+  getSourceLabel,
+  formatCurrency,
+  formatDate,
+} from '@/lib/utils'
 
 interface OrderCardProps {
   order: {
@@ -14,7 +22,7 @@ interface OrderCardProps {
     items: Array<{ product_name: string; quantity: number }>
     created_at: string
   }
-  onStatusChange?: (orderId: string, newStatus: string) => void
+  onStatusChange?: (orderId: string, newStatus: string) => Promise<void> | void
 }
 
 const statusFlow: Record<string, string> = {
@@ -34,14 +42,42 @@ const statusActionLabel: Record<string, string> = {
 }
 
 export function OrderCard({ order, onStatusChange }: OrderCardProps) {
+  const [loadingAction, setLoadingAction] = useState<string | null>(null)
+
   const nextStatus = statusFlow[order.status]
+
+  async function handleAdvance() {
+    if (!onStatusChange || !nextStatus) return
+    setLoadingAction('advance')
+    try {
+      await onStatusChange(order.id, nextStatus)
+    } finally {
+      setLoadingAction(null)
+    }
+  }
+
+  async function handleCancel() {
+    if (!onStatusChange) return
+    setLoadingAction('cancel')
+    try {
+      await onStatusChange(order.id, 'cancelled')
+    } finally {
+      setLoadingAction(null)
+    }
+  }
+
+  const isAdvancing = loadingAction === 'advance'
+  const isCancelling = loadingAction === 'cancel'
+  const isUpdating = loadingAction !== null
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-blue-500/20 transition-colors">
       <div className="flex items-start justify-between mb-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold">#{order.order_number?.toString().padStart(3, '0') ?? order.id.slice(0, 6)}</span>
+            <span className="font-semibold">
+              #{order.order_number?.toString().padStart(3, '0') ?? order.id.slice(0, 6)}
+            </span>
             <span className={`text-xs px-2 py-0.5 rounded-full ${getOrderStatusColor(order.status)}`}>
               {getOrderStatusLabel(order.status)}
             </span>
@@ -49,7 +85,9 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
               {getSourceLabel(order.source)}
             </span>
           </div>
-          <div className="text-white/60 text-sm">{order.customer_name} · {order.customer_phone}</div>
+          <div className="text-white/60 text-sm">
+            {order.customer_name} · {order.customer_phone}
+          </div>
         </div>
         <div className="text-right">
           <div className="font-bold text-blue-400">{formatCurrency(order.total)}</div>
@@ -59,24 +97,77 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
 
       <div className="text-sm text-white/50 mb-4">
         {order.items.map((item, i) => (
-          <span key={i}>{item.quantity}x {item.product_name}{i < order.items.length - 1 ? ', ' : ''}</span>
+          <span key={i}>
+            {item.quantity}x {item.product_name}
+            {i < order.items.length - 1 ? ', ' : ''}
+          </span>
         ))}
       </div>
 
       {nextStatus && onStatusChange && (
         <div className="flex gap-2">
           <button
-            onClick={() => onStatusChange(order.id, nextStatus)}
-            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm py-2 rounded-lg transition-colors font-medium"
+            onClick={handleAdvance}
+            disabled={isUpdating}
+            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white text-sm py-2 rounded-lg transition-colors font-medium"
           >
-            {statusActionLabel[order.status]}
+            {isAdvancing ? (
+              <>
+                <svg
+                  className="w-3.5 h-3.5 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                Atualizando...
+              </>
+            ) : (
+              statusActionLabel[order.status]
+            )}
           </button>
+
           {order.status === 'pending' && (
             <button
-              onClick={() => onStatusChange(order.id, 'cancelled')}
-              className="px-3 bg-white/5 hover:bg-red-500/20 text-white/50 hover:text-red-400 text-sm py-2 rounded-lg transition-colors border border-white/10"
+              onClick={handleCancel}
+              disabled={isUpdating}
+              className="px-3 flex items-center justify-center bg-white/5 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-white/50 hover:text-red-400 text-sm py-2 rounded-lg transition-colors border border-white/10"
             >
-              ✕
+              {isCancelling ? (
+                <svg
+                  className="w-3.5 h-3.5 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+              ) : (
+                '✕'
+              )}
             </button>
           )}
         </div>

@@ -1,18 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
-
-const DEMO_CUSTOMERS = [
-  { id: '1', name: 'João Silva', phone: '(11) 99999-0001', email: 'joao@email.com', total_orders: 12, total_spent: 845.6, last_order_at: '2026-03-28T14:30:00Z', tags: ['vip'] },
-  { id: '2', name: 'Maria Santos', phone: '(11) 99999-0002', email: null, total_orders: 5, total_spent: 312.5, last_order_at: '2026-03-25T18:00:00Z', tags: [] },
-  { id: '3', name: 'Carlos Lima', phone: '(11) 99999-0003', email: 'carlos@email.com', total_orders: 1, total_spent: 67.0, last_order_at: '2026-03-30T12:00:00Z', tags: ['novo'] },
-  { id: '4', name: 'Ana Oliveira', phone: '(11) 99999-0004', email: null, total_orders: 8, total_spent: 560.0, last_order_at: '2026-02-10T19:00:00Z', tags: ['inativo'] },
-  { id: '5', name: 'Roberto Sousa', phone: '(11) 99999-0005', email: 'roberto@email.com', total_orders: 22, total_spent: 1840.0, last_order_at: '2026-03-29T20:00:00Z', tags: ['vip'] },
-  { id: '6', name: 'Fernanda Castro', phone: '(11) 99999-0006', email: null, total_orders: 3, total_spent: 189.5, last_order_at: '2026-03-15T16:00:00Z', tags: [] },
-  { id: '7', name: 'Paulo Mendes', phone: '(11) 99999-0007', email: 'paulo@email.com', total_orders: 15, total_spent: 1020.0, last_order_at: '2026-03-28T21:00:00Z', tags: ['vip'] },
-  { id: '8', name: 'Lucia Ferreira', phone: '(11) 99999-0008', email: null, total_orders: 2, total_spent: 98.0, last_order_at: '2026-01-20T13:00:00Z', tags: ['inativo'] },
-]
+import { createClient } from '@/lib/supabase/client'
+import type { Customer } from '@/lib/types'
 
 const TAG_COLORS: Record<string, string> = {
   vip: 'bg-yellow-500/20 text-yellow-400',
@@ -27,19 +18,103 @@ const FILTERS = [
   { id: 'inativo', label: 'Inativos' },
 ]
 
+// ── Skeleton row ──────────────────────────────────────────────────────────────
+function SkeletonRow() {
+  return (
+    <tr className="border-b border-white/5 animate-pulse">
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-white/10 rounded-full" />
+          <div className="space-y-1">
+            <div className="h-3 bg-white/10 rounded w-28" />
+            <div className="h-2 bg-white/10 rounded w-20" />
+          </div>
+        </div>
+      </td>
+      <td className="px-6 py-4"><div className="h-3 bg-white/10 rounded w-28" /></td>
+      <td className="px-6 py-4"><div className="h-3 bg-white/10 rounded w-8" /></td>
+      <td className="px-6 py-4"><div className="h-3 bg-white/10 rounded w-20" /></td>
+      <td className="px-6 py-4"><div className="h-3 bg-white/10 rounded w-24" /></td>
+      <td className="px-6 py-4"><div className="h-3 bg-white/10 rounded w-12" /></td>
+      <td className="px-6 py-4" />
+    </tr>
+  )
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function ClientesPage() {
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState('all')
 
-  const filtered = filter === 'all'
-    ? DEMO_CUSTOMERS
-    : DEMO_CUSTOMERS.filter((c) => c.tags.includes(filter))
+  // ── Load customers ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false
 
+    async function load() {
+      setLoading(true)
+      setError(null)
+      try {
+        const supabase = createClient()
+
+        const { data: { user }, error: authErr } = await supabase.auth.getUser()
+        if (authErr || !user) throw new Error('Usuário não autenticado')
+
+        const { data: org, error: orgErr } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('owner_id', user.id)
+          .single()
+        if (orgErr || !org) throw new Error('Organização não encontrada')
+
+        const { data: store, error: storeErr } = await supabase
+          .from('stores')
+          .select('id')
+          .eq('organization_id', org.id)
+          .limit(1)
+          .single()
+        if (storeErr || !store) throw new Error('Loja não encontrada. Crie sua loja primeiro.')
+
+        const { data: rows, error: custErr } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('store_id', store.id)
+          .order('total_spent', { ascending: false })
+        if (custErr) throw custErr
+
+        if (!cancelled) {
+          setCustomers((rows as Customer[]) ?? [])
+        }
+      } catch (e: unknown) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Erro ao carregar clientes')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  // ── Client-side filtering ───────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    if (filter === 'all') return customers
+    return customers.filter((c) => Array.isArray(c.tags) && c.tags.includes(filter))
+  }, [customers, filter])
+
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="p-8">
+      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold mb-1">Clientes</h1>
-          <p className="text-white/50 text-sm">{filtered.length} clientes encontrados</p>
+          {loading ? (
+            <div className="h-4 bg-white/10 rounded w-36 animate-pulse" />
+          ) : (
+            <p className="text-white/50 text-sm">{filtered.length} clientes encontrados</p>
+          )}
         </div>
         <div className="flex gap-2">
           <button className="bg-white/5 border border-white/10 hover:border-white/20 text-white/70 hover:text-white px-4 py-2 rounded-lg text-sm transition-colors">
@@ -47,6 +122,13 @@ export default function ClientesPage() {
           </button>
         </div>
       </div>
+
+      {/* Error state */}
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-6 py-4 text-sm mb-6">
+          {error}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-2 mb-6">
@@ -80,45 +162,69 @@ export default function ClientesPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {/* Loading skeletons */}
+            {loading && Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}
+
+            {/* Empty state — no customers at all */}
+            {!loading && !error && customers.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-white/30">
-                  Nenhum cliente neste filtro
+                <td colSpan={7} className="px-6 py-16 text-center">
+                  <p className="text-3xl mb-3">👤</p>
+                  <p className="text-white/50 font-medium mb-1">Nenhum cliente ainda</p>
+                  <p className="text-white/30 text-sm">Os clientes aparecerão aqui após os primeiros pedidos.</p>
                 </td>
               </tr>
-            ) : (
-              filtered.map((customer, i) => (
-                <tr key={customer.id} className={`hover:bg-white/5 transition-colors ${i < filtered.length - 1 ? 'border-b border-white/5' : ''}`}>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-600/30 rounded-full flex items-center justify-center text-sm font-semibold">
-                        {customer.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="font-medium text-sm">{customer.name}</div>
-                        {customer.email && <div className="text-white/40 text-xs">{customer.email}</div>}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-white/70 text-sm">{customer.phone}</td>
-                  <td className="px-6 py-4 text-sm">{customer.total_orders}</td>
-                  <td className="px-6 py-4 text-blue-400 text-sm font-medium">{formatCurrency(customer.total_spent)}</td>
-                  <td className="px-6 py-4 text-white/50 text-sm">{formatDateShort(customer.last_order_at)}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-1 flex-wrap">
-                      {customer.tags.map((tag) => (
-                        <span key={tag} className={`text-xs px-2 py-0.5 rounded-full ${TAG_COLORS[tag] || 'bg-gray-500/20 text-gray-400'}`}>
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button className="text-white/30 hover:text-blue-400 text-sm transition-colors">Ver →</button>
-                  </td>
-                </tr>
-              ))
             )}
+
+            {/* Empty state — filter returned nothing */}
+            {!loading && !error && customers.length > 0 && filtered.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-6 py-12 text-center text-white/30">
+                  Nenhum cliente neste filtro.
+                </td>
+              </tr>
+            )}
+
+            {/* Data rows */}
+            {!loading && !error && filtered.map((customer, i) => (
+              <tr
+                key={customer.id}
+                className={`hover:bg-white/5 transition-colors ${i < filtered.length - 1 ? 'border-b border-white/5' : ''}`}
+              >
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-600/30 rounded-full flex items-center justify-center text-sm font-semibold shrink-0">
+                      {customer.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">{customer.name}</div>
+                      {customer.email && <div className="text-white/40 text-xs">{customer.email}</div>}
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-white/70 text-sm">{customer.phone}</td>
+                <td className="px-6 py-4 text-sm">{customer.total_orders}</td>
+                <td className="px-6 py-4 text-blue-400 text-sm font-medium">{formatCurrency(customer.total_spent)}</td>
+                <td className="px-6 py-4 text-white/50 text-sm">
+                  {customer.last_order_at ? formatDateShort(customer.last_order_at) : '—'}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex gap-1 flex-wrap">
+                    {Array.isArray(customer.tags) && customer.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className={`text-xs px-2 py-0.5 rounded-full ${TAG_COLORS[tag] ?? 'bg-gray-500/20 text-gray-400'}`}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <button className="text-white/30 hover:text-blue-400 text-sm transition-colors">Ver →</button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
